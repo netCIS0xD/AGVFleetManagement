@@ -1,0 +1,297 @@
+{% load tz %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Reading History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            margin-bottom: 10px;
+        }
+        .date-range-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .date-range-label {
+            margin-right: 10px;
+        }
+        .date-range-select {
+            padding: 5px;
+            height: 30px; /* Increase the height to 30px */
+            width: 150px; /* Adjust the width as needed */
+        }
+        .date-range-button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-left: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .refresh-button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .refresh-button:hover {
+            background-color: #45a049;
+        }
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            max-width: 800px;
+        }
+        th, td {
+            border: 1px solid #444;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #333;
+        }
+        tr:nth-child(even) {
+            background-color: #2c2c2c;
+        }
+        .timestamp {
+            padding-right: 30px;
+        }
+        .chart-container {
+            width: 80%;
+            max-width: 800px;
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Sensor Reading History</h1>
+    <div class="date-range-container">
+        <label class="date-range-label" for="startDate">Start Date:</label>
+        <input class="date-range-input" type="date" id="startDate">
+        <label class="date-range-label" for="endDate">   End Date:</label>
+        <input class="date-range-input" type="date" id="endDate">
+    </div>
+    <div style="margin-bottom: 20px;"> <!-- Add a div with margin to create space between the date range container and the refresh button -->
+    
+      <button class="refresh-button" id="refreshButton" onclick="window.location.href = '/sensor_readings?start_date=' + encodeURIComponent(document.getElementById('startDate').value) + '&end_date=' + encodeURIComponent(document.getElementById('endDate').value)"> Refresh Data </button>
+      <button class="refresh-button" id="downloadButton" onclick="downloadData()">Download Data</button>
+      <!--
+          <button class="refresh-button" onclick="window.location.reload()"> Refresh Data</button>
+      -->
+    </div>
+    <div class="chart-container">
+        <canvas id="sensorChart"></canvas>
+    </div>
+    <table>
+        <tr>
+            <th class="timestamp">Timestamp</th>
+            <th>Temperature</th>
+            <th>Voltage</th>
+            <th>Current</th>
+        </tr>
+        {% for reading in readings %}
+        <tr>
+            <td class="timestamp">{{ reading.timestamp|date:"d/m/Y H:i:s" }}</td>
+            <td>{{ reading.temperature }} °C</td>
+            <td>{{ reading.voltage }} V</td>
+            <td>{{ reading.current }} A</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <script>
+         // Ensure the context variable readings is properly passed to JavaScript
+        // const readings = JSON.parse('{{ readings|safe|escapejs }}');
+        readingsData = JSON.parse('{{ readings_json|escapejs }}');
+        console.log(readingsData);
+
+        // Retrieve and Check if the response JSON object contains startDateServer and endDateServer
+        const contextData = {
+            startDate2: "{{ startDateServer|escapejs }}",
+            endDate2: "{{ endDateServer|escapejs }}"
+        };
+        // if the respone data's date range is valide, then update the webpage date inputbox 
+        if (contextData.startDate2) {
+            console.log("Start Date:", contextData.startDate2);
+            document.getElementById('startDate').value = contextData.startDate2;
+        } else {
+            console.log("Start Date is missing.");
+            document.getElementById('startDate').value = "";
+        }
+
+    if (contextData.endDate2) {
+            console.log("End Date:", contextData.endDate2);
+            document.getElementById('endDate').value = contextData.endDate2;
+        } else {
+            console.log("End Date is missing.");
+            document.getElementById('endDate').value = "";
+        }
+
+    // return date time labels in ISO 8601 format without decimal seconds and replace 'T' with ' '
+    const labels = readingsData.map(reading => {
+        const timestamp = new Date(Date.parse(reading.fields.timestamp));
+        // Convert the timestamp to ISO 8601 format without decimal seconds
+        const isoTimestamp = timestamp.toISOString().replace(/\.\d+Z$/, '').replace('T', ' ');
+        return isoTimestamp;
+    }).reverse();
+
+    // Process the labels to keep the date information in the first and last timestamp of a sequence with the same date
+    const processedLabels = labels.map((label, index, array) => {
+        const currentDate = label.split(' ')[0];
+        const previousDate = index > 0 ? array[index - 1].split(' ')[0] : null;
+        const nextDate = index < array.length - 1 ? array[index + 1].split(' ')[0] : null;
+
+        if (currentDate !== previousDate && currentDate !== nextDate) {
+            return label; // Keep full date and time
+        } else if (currentDate === previousDate && currentDate === nextDate) {
+            return label.split(' ')[1]; // Keep only time
+        } else {
+            return label; // Keep full date and time
+        }
+    });
+
+    console.log(processedLabels);
+
+        const temperatureData = readingsData.map(reading => reading.fields.temperature).reverse();
+        const voltageData = readingsData.map(reading => reading.fields.voltage).reverse();
+        const currentData = readingsData.map(reading => reading.fields.current).reverse();
+
+        
+        console.log('chart labels are')
+        console.log(labels)
+
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        const sensorChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: processedLabels,
+                datasets: [
+                    {
+                        label: 'Temperature (°C)',
+                        data: temperatureData,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1,
+                        fill: false
+                    },
+                    {
+                        label: 'Voltage (V)',
+                        data: voltageData,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        fill: false
+                    },
+                    {
+                        label: 'Current (A)',
+                        data: currentData,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Time (H:M:S)'
+                        },
+                        // ticks: {
+                        //     callback: function(value, index, values) {
+                        //         // Ensure the value is a valid ISO 8601 string
+                        //         console.log(value);
+                        //         // const date = new Date(labels[index]);
+                        //         const date = new Date(values[index].value);
+                        //         console.log(date);
+                        //         if (!isNaN(date.getTime())) {
+                        //             if (index === 0) {
+                        //                 // Show full date and time for the first label
+                        //                 return date.toLocaleString();
+                        //             }
+                        //             // Format the date and time as desired
+                        //             return date.toLocaleTimeString([], { hour12: false });
+                        //         } else {
+                        //             // Handle invalid date parsing
+                        //             console.error("Invalid date:", value);
+                        //             return "";
+                        //         }
+                        //     }
+                        // }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Value'
+                        }
+                    }
+                }
+            }
+        });
+
+
+        // Add a downloadData function to handle the download action
+        function downloadData() {
+            // Create a new CSV string
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Timestamp,Temperature (°C),Voltage (V),Current (A)\n";
+
+            // Loop through the readings data and add each row to the CSV string
+            readingsData.forEach(reading => {
+                csvContent += `${reading.fields.timestamp},${reading.fields.temperature},${reading.fields.voltage},${reading.fields.current}\n`;
+            });
+
+            // Retrieve the selected start and end dates
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            // Format the start and end dates in the desired format (e.g., YYYYMMDD)
+            const formattedStartDate = startDate.replace(/-/g, '');
+            const formattedEndDate = endDate.replace(/-/g, '');
+            
+            // Generate the file name with the selected date range
+            const fileName = `sensor_readings_${formattedStartDate}-${formattedEndDate}.csv`;
+
+
+            // Create a new link element
+            const link = document.createElement('a');
+            link.href = encodeURI(csvContent);
+            link.target = '_blank';
+            link.download = fileName;
+
+            // Simulate clicking the link to trigger the download
+            link.click();
+        }
+
+
+    </script>
+
+</body>
+</html>
+

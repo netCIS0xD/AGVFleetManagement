@@ -1,0 +1,8 @@
+from django.apps import AppConfig
+
+
+class RemoteCarConfig(AppConfig):
+    name = 'remote_car'
+    def ready(self):
+        from remote_car import views
+        views.updata()

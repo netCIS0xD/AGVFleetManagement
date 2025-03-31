@@ -1,0 +1,10 @@
+from django.urls import path,include
+import remote_car.views
+
+urlpatterns=[
+    path('',remote_car.views.display),
+    path('action/<str:act>/<str:cid>/<str:did>/<str:page>/<str:despage>/<str:carselect>/<str:desselect>',remote_car.views.action),
+    path('page/<str:page>/<str:despage>/<str:carselect>/<str:desselect>',remote_car.views.displaypage),
+    path('refreshposition/<str:id>',remote_car.views.refreshpo),
+    path('refreshdes/<str:id>',remote_car.views.refreshdestination),
+]

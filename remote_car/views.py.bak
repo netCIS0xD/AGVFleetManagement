@@ -1,0 +1,252 @@
+from django.shortcuts import render
+from django.http import HttpResponse
+from remote_car.models import Car,Des
+from datetime import datetime
+
+
+import socket
+import time
+from apscheduler.schedulers.background import BackgroundScheduler
+from django.core.cache import cache
+from remote_car.thread import Positions
+import random
+
+import json
+# Create your views here.
+def display(request):
+    maxpage=(Car.objects.all().count()//5)
+    if(Car.objects.all().count()%5==0):
+        maxpage = (Car.objects.all().count() / 5)-1
+    cars2display=[]
+    des2display=[]
+    for i in range(5):
+        try:
+            cars2display.append(Car.objects.all()[i])
+        except:
+            break
+
+    maxdespage=(Des.objects.all().count()//5)
+    if(Des.objects.all().count()%5==0):
+        maxdespage = (Des.objects.all().count() / 5)-1
+    for i in range(5):
+        try:
+            des2display.append(Des.objects.all()[i])
+        except:
+            break
+    return render(request, 'controlPanel.html', {
+        'cap': cars2display,
+        'dep':des2display,
+        'pagenumber':0,
+        'despagenumber':0,
+        'maxpage':maxpage,
+        'maxdespage':maxdespage,
+        'carselectd':'NA',
+        'desselected':'NA'
+    })
+
+def displaypage(request,page,despage,carselect,desselect):
+    maxpage=(Car.objects.all().count()//5)
+    if(Car.objects.all().count()%5==0):
+        maxpage = (Car.objects.all().count() / 5)-1
+    cars2display=[]
+    for i in range(int(page)*5,int(page)*5+5):
+        try:
+            cars2display.append(Car.objects.all()[i])
+        except:
+            break
+
+    maxdespage=(Des.objects.all().count()//5)
+    if(Des.objects.all().count()%5==0):
+        maxdespage = (Des.object.all().count() // 5)-1
+    des2display=[]
+    for i in range(int(despage)*5,int(despage)*5+5):
+        try:
+            des2display.append(Des.objects.all()[i])
+        except:
+            break
+
+    return render(request, 'controlPanel.html', {
+        'cap': cars2display,
+        'dep':des2display,
+        'pagenumber':int(page),
+        'despagenumber':int(despage),
+        'maxpage':maxpage,
+        'maxdespage':maxdespage,
+        'carselectd': carselect,
+        'desselected': desselect
+    })
+
+
+def action(request,act,cid,did,page,despage,carselect,desselect):
+    message=""
+    ip=""
+    ca=Car()
+    for c in Car.objects.all():
+        if str(c.car_id)==cid: # find the object car with the id = cid
+            ip=c.car_IP
+            ca=c
+            break
+    dest=Des()
+    for d in Des.objects.all():
+        if str(d.des_id)==did:
+            dest=d
+            break
+    print('SEND AVG ',cid,'(',ip,') to ',dest.des_name)
+
+    if act=='go':
+        if ca.car_control!=1:
+            message='AVG_not_valid (connection to the car is lost)'
+        elif dest.des_disable==1:
+            message='Destination_not_valid'
+        else:
+            connectStartTime=datetime.now()
+            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # create a socket
+            try:
+                print("to connect the server at "+ip)
+                client.connect((ip, 80))  # create a new connection to the server
+                print(" and send "+"\"GO,"+did+",iCart\"")
+                re=client.send(("GO,"+did+",iCart").encode())  # send letter A
+                xi=0
+                while (datetime.now()-connectStartTime).total_seconds() < 5:
+                    # wait 5 sec for the TCP communicaiton finish
+                    xi=xi+1
+                print(".... done.")
+            except Exception as e:
+                 print(e)
+    elif act=='stop':
+        if message == "":
+            message += cid+'_Stopped'
+        connectStartTime=datetime.now()
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            print("to connect the server at "+ip)
+            client.connect((ip, 80))
+            print(" and send "+"\"STOP\"")
+            re=client.send("STOP".encode())
+            xi=0
+            while (datetime.now()-connectStartTime).total_seconds() < 5:
+                # wait 5 sec for the TCP communicaiton finish
+                xi=xi+1
+            print(".... done.")
+        except Exception as e:
+            print("DXW ERR")
+            print(e)
+
+
+
+    maxpage = (Car.objects.all().count() // 5)
+    if (Car.objects.all().count() % 5 == 0):
+        maxpage = (Car.objects.all().count() / 5) - 1
+    cars2display = []
+    for i in range(int(page) * 5, int(page) * 5 + 5):
+        try:
+            cars2display.append(Car.objects.all()[i])
+        except:
+            break
+    maxdespage=(Des.objects.all().count()//5)
+    if(Des.objects.all().count()%5==0):
+        maxdespage = (Des.object.all().count() // 5)-1
+    des2display=[]
+    for i in range(int(despage)*5,int(despage)*5+5):
+        try:
+            des2display.append(Des.objects.all()[i])
+        except:
+            break
+
+    return render(request, 'controlPanel.html', {
+        'cap': cars2display,
+        'dep':des2display,
+        'pagenumber':int(page),
+        'despagenumber':int(despage),
+        'maxpage':maxpage,
+        'maxdespage':maxdespage,
+        'carselectd': carselect,
+        'desselected': desselect,
+        'message':message
+    })
+
+def dataupdate():
+    for c in Car.objects.all():
+        time.sleep(60)
+        x,y=updateposition(c,c.car_IP)
+        print(' * updated position of iCart (',c.car_id,') with [x=',x,' y=',y,']')
+        if x!='':
+            c.car_x=int(x)
+        else:
+            print(' invlide x')
+
+        if y!='':
+            c.car_y=int(y)
+        else:
+            print(' invlide y')
+
+        c.save()
+
+
+
+def updata():
+    scheduler=BackgroundScheduler(job_defaults={'max_instances': 200})
+    scheduler.add_job(dataupdate,'interval',seconds=5)
+    scheduler.start()
+
+def updateposition(nc,ip):
+
+    x=''
+    y=''
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        print("to connect server at "+ip)
+        client.connect((ip, 80))
+        print("send getPOS to the server at "+ip)
+
+        re = client.send("getPOS".encode())
+        data=client.recv(1024).decode()
+        print("received data: "+data)
+        # print(data)
+        # received data format: "x,y"
+        client.close()
+        if data is not None:
+            switch = 0
+            for cc in data:  # cc is a single letter
+                if switch==0 and cc !=',':
+                    x+=cc
+                elif switch==1 and cc!=',':
+                    y+=cc
+                elif cc==',':
+                    switch=1
+
+        nc.car_control=1 # update the car status to 1 (connected)
+        nc.car_lastTimeConnected=datetime.now().strftime("%d/%m/%Y %H:%M:%S") #record the current time as the last connected time
+        nc.save()  # save to the SQLlight database
+
+    except Exception as e:
+        print(e)
+        print(nc.car_lastTimeConnected)
+        if nc.car_control==1:  # if the car was connected, but now in exception, 
+            nc.car_control=2   # change to state 2 (connection is lost, and try to connect)
+            nc.save()
+            
+            # else if the car's connection was lost for 120 sec, and still get an exception, 
+            # change to state 3 (connection is lost, and still try to connect)
+        elif nc.car_control==2 and (datetime.now()-datetime.strptime(nc.car_lastTimeConnected, '%d/%m/%Y %H:%M:%S')).total_seconds() > 120:
+            nc.car_control=3  
+            nc.save()
+
+    return x,y
+
+def refreshpo(request,id):
+    ca=Car()
+    for c in Car.objects.all():
+        if str(c.car_id)==id:
+            ca=c
+    x=ca.car_x
+    y=ca.car_y
+    success = str(ca.car_control)+str(x)+','+str(y)
+    return HttpResponse(success)
+
+def refreshdestination(request,id):
+    de=Des()
+    for d in Des.objects.all():
+        if str(d.des_id)==id:
+            de=d
+    return HttpResponse(de.des_disable)

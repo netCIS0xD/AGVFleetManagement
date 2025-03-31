@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <title>ADM iCart Remote Monitoring & Control</title>
+    <script>
+        function clr (){
+        oid.value='NA'
+        did.value='NA'
+        message.value=' '
+        }
+        function stop(c,d,p,dp,cs,ds){
+        window.location.href="/action/stop/"+c+"/"+d+"/"+p+"/"+dp+"/"+c+"/"+d
+        }
+        function go(c,d,p,dp,cs,ds){
+        if(c=='Choose_AVG'){
+        message.value = 'Please select a AVG'
+        }
+        else if(d == 'Choose_Des'){
+        message.value = 'Please select a Destination'
+        }
+        else{
+        //<!-- 'action/<str:act>/<str:cid>/<str:did>/<str:page>/<str:despage>/<str:carselect>/<str:desselect>' -->
+        window.location.href="/action/go/"+c+"/"+d+"/"+p+"/"+dp+"/"+c+"/"+d
+        }
+        }
+        function selectcar(id){
+        console.log("-----------here-----");
+        oid.value=id
+        }
+        function selectdes(id){
+         /*   {% for d in dep%}
+                if (d.des_id==id) & (d.des_disable==1)
+                  // the destination is disabled
+                  // do nothing and return
+                  return
+            {% endfor %} 
+        */
+            // the button is enabled
+            if (did.value=='NA'){
+                // select a botton for the first time
+                did.value=id
+                colorCode="#0a4d34" // dark green
+                document.getElementById("desname"+String(id)).style="background-color:"+colorCode
+            }
+            else if (did.value == id){
+                // alredy selected the same one, de-selection 
+                did.value='NA'
+                colorCode="#04AA6D" // green
+                document.getElementById("desname"+String(id)).style="background-color:"+colorCode
+            }
+            else {
+                colorCode="#04AA6D" // green
+                document.getElementById("desname"+String(did.value)).style="background-color:"+colorCode
+                colorCode="#0a4d34" // dark green
+                document.getElementById("desname"+String(id)).style="background-color:"+colorCode
+                did.value=id
+            }
+         // document.getElementById("desname"+String(id)).style='background-color:#32204b'
+        }
+
+        function another(category,page,despage,c,d){
+        if(category=="0"){
+        let a=page+1
+        window.location.href="/page/"+a+"/"+despage+"/"+c+"/"+d
+        }
+        if(category=="1"){
+        let a=despage+1
+        window.location.href="/page/"+page+"/"+a+"/"+c+"/"+d
+        }
+        }
+        function last(category,page,despage,c,d){
+        if(category=="0"){
+        let a=page-1
+        window.location.href="/page/"+a+"/"+despage+"/"+c+"/"+d
+        }
+        if(category=="1"){
+        let a=despage-1
+        window.location.href="/page/"+page+"/"+a+"/"+c+"/"+d
+        }
+
+        }
+
+        function updateLatestSensorData() {
+            // fetch() is an API function to generate a URL request specified by the url pattern name defined in urls.py 
+            fetch("{% url 'urlPatternName_get_latest_sensor_data' %}")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("temperature").textContent = data.temperature !== null ? `${data.temperature} °C` : "N/A";
+                    document.getElementById("current").textContent = data.current !== null ? `${data.current} A` : "N/A";
+                    document.getElementById("voltage").textContent = data.voltage !== null ? `${data.voltage} V` : "N/A";
+                });
+        }
+
+        setInterval(updateLatestSensorData, 5000); // Update sebsor data every 5 seconds
+        window.onload = updateLatestSensorData; // Initial load
+    </script>
+    <style>
+        input[type=button],input[type=submit],input[type=reset]{
+        background-color:#0b35cb;
+        border-radius: 5px;
+        width:150px;
+        height:80px;
+        border:none;
+        color:white;
+        padding:16px 32px;
+        text-decoration:none;
+        margin:4px 2px;
+        cursor:pointer;
+        text-align: center;
+        box-shadow: 0 0 0 rgba(0,0,0,0.1), inset 0 0 0 rgba(0,0,0,0.1);
+        }
+
+        .sensor-data {
+            margin-bottom: 20px;
+            font-size: 20px;
+            text-align: center;
+        }
+
+
+    </style>
+</head>
+<body>
+
+
+<div class="page-body" align="center">
+
+    <table style="border:2px solid ;border-color:#04AA6D">
+    <tr>
+    <td><h2>Sensor Data Dashboard</h2></td>
+    </tr>
+    <tr>
+    <td>
+    <div class="sensor-data">
+        <p>Temperature: <span id="temperature">N/A</span></p>
+        <p>Current: <span id="current">N/A</span></p>
+        <p>Voltage: <span id="voltage">N/A</span></p>
+    </div>
+    <div style="text-align: center;">
+        <button onclick="window.open('{% url 'history_data' %}', '_blank', 'noopener,noreferrer')" style="margin-top: 10px; padding: 10px 20px; font-size: 16px; background-color: #0b35cb; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            View Sensor History
+        </button>
+    </div>
+    </td>
+    </tr>
+   </table>
+
+
+    <div>
+        <table style="border:1px solid ;border-color:#04AA6D">
+            <tr>
+                <h1>ADM iCart Remote Monitoring & Control </h1></br>
+                <!-- <font size="7"> ADM iCart Remote Monitoring & Control </font> <br> -->
+                 <font size="6"> Select AVG </font>
+            </tr>
+            <td width="75">
+            {% if pagenumber == 0 %}
+                <input id="no last" type="button" disabled value="<<&#13;&#10;Pre" style="font-size:20px; width:100%;height:180px;background-color:#0b8bcb;"  >
+            {% else %}
+                <input id="pr" type="button" onclick="last(0,{{pagenumber}},{{despagenumber}},oid.value,did.value)" value="<<&#13;&#10;Pre" style="font-size:20px; width:100%; height:180px;background-color:#0b8bcb;" >
+            {% endif %}
+            <!-- <div style="widht:150px;height:165px; border-color:#04AA6D"></div> -->
+            </td>
+
+            {% for c in cap%}
+                <td width="150" style="text-align: center; vertical-align: middle;">
+                    <!-- Round Active/Inactive button -->
+                    <button id="active-btn{{ c.car_id }}" onclick="toggleActive({{ c.car_id }})"
+                    style="font-size:12px; background-color:
+                        {% if c.car_control == 0 %} black
+                        {% elif c.car_control == 1 %} green 
+                        {% elif c.car_control == 2 %} #DAA520
+                        {% endif %};
+                        color:
+                        {% if c.car_control == 0 %} red
+                        {% elif c.car_control == 1 %} red 
+                        {% elif c.car_control == 2 %} white
+                        {% endif %};
+                        font-weight:bold; width:40px; height:40px; border-radius:50%; border:5px;">
+                    {% if c.car_control == 0 %}
+                        OFF
+                    {% elif c.car_control == 1 %}
+                        ON
+                    {% elif c.car_control == 2 %}
+                        ON
+                    {% endif %}
+                </button>
+
+                    <!-- Car button -->
+                <div>
+                    <!-- <input id="name{{c.car_id}}" type="button" onclick="selectcar({{c.car_id}})" value="{{c.car_id}}"> -->
+                    <input id="name{{c.car_id}}" type="button" onclick="selectcar({{c.car_id}})" value="{{c.car_name}}&#13;&#10;{{c.car_IP}}" style="font-size : 16px;">
+                </div>
+
+                <div style="max-width:150px" ><input style="border:0px; max-width:150px;text-align:center" height="50px" id="control{{c.car_id}}"   type="text" value="Status"></div>
+                <div style="max-width:150px" ><input style="border:0px; max-width:150px;text-align:center" height="50px" id="p{{c.car_id}}"   type="text" value="location"></div>
+                <div>
+                    <input type="button" style="background-color:red;height:60px;" onclick="stop({{c.car_id}},0,{{pagenumber}},{{despagenumber}})" value="STOP" >
+                </div>
+                </td>
+            {% endfor %}
+
+
+            <td width="75">
+            {% if pagenumber == maxpage %}
+                <input id="no next" type="button" disabled value=">>&#13;&#10;Next" style="font-size : 20px; width: 100%;height:180px; background-color:#0b8bcb;"  >
+            {% else %}
+                <input id="nr" type="button" onclick="another(0,{{pagenumber}},{{despagenumber}},oid.value,did.value)" value=">>&#13;&#10;Next" style="font-size : 20px; width: 100%; height:180px;background-color:#0b8bcb;" >
+            {% endif %}
+            <!-- <div style="widht:150px;height:165px; border-color:#04AA6D"></div> -->
+            </td>
+            </table>
+
+
+         <table style="border:1px solid;border-color:#04AA6D">
+             <tr><font size="6"> Select Destination</font></tr>
+             <td width="75">
+            {% if despagenumber == 0 %}
+                <input id="no dlast" type="button" disabled value="<<&#13;&#10;Pre" style="font-size:20px; width:100%; height:130px;background-color:#0b8bcb;">
+            {% else %}
+            <input id="dpr" type="button" onclick="last(1,{{pagenumber}},{{despagenumber}},oid.value,did.value)" value="<<&#13;&#10;Pre" style="font-size:20px; width:100%; height:130px;background-color:#0b8bcb;">
+            {% endif %}
+            <!-- <div style="widht:75px;height:100px; border-color:#04AA6D"></div> -->
+             <div> </div>
+
+            </td>
+
+        {% for d in dep%}
+         <td width="150">
+            <div>
+                <input id="desname{{d.des_id}}" type="button" onclick="selectdes({{d.des_id}})" value="{{d.des_id}}">
+            </div>
+             <div style="widht:100%;height:50px; border-color:#04AA6D">{{d.des_description}}</div>
+            <!-- <div>              </div> -->
+         </td>
+        {% endfor %}
+
+              <td width="75">
+            {% if despagenumber == maxdespage %}
+            <input id="no dnext" type="button" disabled value=">>&#13;&#10;Next" style="font-size:20px; width:100%; height:130px;background-color:#0b8bcb;">
+            {% else %}
+           <input id="dnr" type="button" onclick="another(1,{{pagenumber}},{{despagenumber}},oid.value,did.value)" value=">>&#13;&#10;Next" style="font-size:20px; width:100%; height:130px;background-color:#0b8bcb;">
+            {% endif %}
+              <!-- <div style="widht:75px;height:100px; border-color:#04AA6D"></div> -->
+              <div> </div>
+
+                </td>
+            </table>
+
+
+
+     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+     <script type="text/javascript">
+    //定时刷新界面0.5秒）cars
+  $(document).ready(function(){
+      setInterval(function() {
+         {% for ca in cap%}
+        $.get("/refreshposition/{{ca.car_id}}" + window.location.search, //GET请求的url地址
+        function(data,status){
+           //console.log(data)
+            document.getElementById('p{{ca.car_id}}').value = data.slice(1,);
+            if(data.slice(0,1)=='1'){ // AMR is online/connected, ON
+            document.getElementById('control{{ca.car_id}}').value = 'Connected';
+            document.getElementById('name{{ca.car_id}}').style='background-color:#04AA6D';
+            document.getElementById('active-btn{{ ca.car_id }}').style.color = 'red';
+            document.getElementById('active-btn{{ ca.car_id }}').style.backgroundColor = '#04AA6D';
+            document.getElementById('active-btn{{ ca.car_id }}').innerText = 'ON';
+            var b=document.getElementById('name{{ca.car_id}}').value;
+            if(String(b) == String(oid.value)){
+            document.getElementById('name{{ca.car_id}}').style='background-color:#0a4d34';
+             }
+            }
+            if(data.slice(0,1)=='2'){ // is connecting AMR, ON, orange background
+            document.getElementById('control{{ca.car_id}}').value = 'Connecting';
+            document.getElementById('name{{ca.car_id}}').style='background-color:#A9A9A9';
+            document.getElementById('name{{ca.car_id}}').disable=true;
+            document.getElementById('active-btn{{ ca.car_id }}').style.color = 'white';
+            document.getElementById('active-btn{{ ca.car_id }}').style.backgroundColor = '#DAA520';
+            document.getElementById('active-btn{{ ca.car_id }}').innerText='ON';
+            }
+            if(data.slice(0,1)=='0'){
+            document.getElementById('control{{ca.car_id}}').value = 'NO Connection';
+            document.getElementById('name{{ca.car_id}}').style='background-color:#A9A9A9';
+            document.getElementById('name{{ca.car_id}}').disable=true;
+            document.getElementById('active-btn{{ ca.car_id }}').style.color = 'red';
+            document.getElementById('active-btn{{ ca.car_id }}').style.backgroundColor = 'black';
+            document.getElementById('active-btn{{ ca.car_id }}').innerText='OFF';
+            }
+
+          });
+           {% endfor %}
+        }, 5000); // interval of 5000 ms, temperatly use 50000 (50 sec) for debug
+  });
+
+    //定时刷新界面0.5秒 Destinaton
+  $(document).ready(function(){
+      setInterval(function() {
+         {% for d in dep%}
+        $.get("/refreshdes/{{d.des_id}}" + window.location.search,//GET璇锋眰鐨剈rl鍦板潃
+        function(data,status){
+
+            if(data==0){
+            document.getElementById('desname{{d.des_id}}').style='background-color:#04AA6D'; // green
+            var b=document.getElementById('desname{{d.des_id}}').value;
+            console.log(String(b)+' ' +String(did.value) );
+            if(String(b) == String(did.value)){
+            document.getElementById('desname{{d.des_id}}').style='background-color:#0a4d34';
+             }
+            }
+            else if(data==1){
+            document.getElementById('desname{{d.des_id}}').style='background-color:#A9A9A9';
+            }
+
+            //console.log(data)
+
+
+
+          });
+           {% endfor %}
+        }, 3000000); // interval of 5000 ms, , temperatly use 50000 (50 sec) for debug
+  });
+
+</script>
+
+
+
+
+        <table style="border:0px">
+            <td>
+ <div><font size="5">  Selected Car:
+<input id="oid" style="max-width:50px;border:0px"   type="text" value={{carselectd}}>
+     Selected Destination:
+     <input id="did" style="max-width:50px;border:0px"   type="text" value={{desselected}}>
+ </font></div></td>
+            </table>
+<div>
+
+
+  <input id="sub" type="button" onclick="go(oid.value,did.value,{{pagenumber}},{{despagenumber}})" value="Submit">
+     <input id="canc" type="button" onclick="clr()" value="Cancel">
+</div>
+        <div>
+        <input id="message"  style="border:0px"  type="text" value={{message}}>
+        </div>
+    </div>
+</div>
+
+<script>
+    // JavaScript function to toggle Active/Inactive button color and text
+    function toggleActive(amrID) {
+        var button = document.getElementById('active-btn' + amrID);
+        var stateStr = document.getElementById('control' + amrID);
+        var new_onlinestate;
+        // Determine the new state based on the current button text
+        if (button.innerText === "OFF") {
+            button.innerText = "ON";
+            button.style.color = "white";  // Set to font color to white when ON
+            button.style.backgroundColor = "#DAA520";  // Set to green when ON
+            new_onlinestate = 2;  // switch to connecting state
+            // document.getElementById('control{{ca.car_id}}').value = 'Connecting';
+            stateStr.value = "Connecting /code 2"
+        } else if (button.innerText === "ON") {
+            button.innerText = "OFF";
+            button.style.color = "red";  // Set to font color to red when OFF
+            button.style.backgroundColor = "black";  // Set to grey when OFF
+            new_onlinestate = 0;  // OFFline state
+            stateStr.value = "Offline /code 0"
+        }
+
+        // Use an intermediate variable to generate the URL
+        var url = "{% url 'update_AMR_State' car_id=0 %}".replace('0', amrID); // Replace with car_id
+
+        // Send the new online state to the Django view via fetch
+        fetch(url, {
+            method: 'POST',  // Use POST method for a specific state update
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')  // CSRF protection (Django-specific)
+            },
+            body: JSON.stringify({ 'new_onlinestate': new_onlinestate })  // Send the new onlinestate in the request body
+           // print("   POST JSON   ")
+          //  print(JSON.stringify({ 'new_onlinestate': new_onlinestate }))
+        
+        })
+        .then(response => response.json())  // Handle response
+        .then(data => {
+            console.log('State updated successfully:', data);
+        })
+        .catch((error) => {
+            console.error('Error updating state:', error);
+        });
+    }
+
+    // Helper function to get the CSRF token
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,22 @@
+from django.db import models
+from datetime import datetime as dt
+from django.utils import timezone
+
+# Create your models here.
+class Car(models.Model):
+    car_id=models.AutoField(primary_key=True)
+    car_x=models.IntegerField()
+    car_y=models.IntegerField()
+    car_control=models.IntegerField()
+    car_IP=models.TextField(default="")
+    car_name=models.TextField(default="iCart")
+    car_lastTimeConnected=models.TextField(default=dt.now())
+
+
+class Des(models.Model):
+    des_id=models.AutoField(primary_key=True)
+    des_name=models.TextField()
+    des_description=models.TextField()
+    des_x=models.IntegerField()
+    des_y=models.IntegerField()
+    des_disable=models.IntegerField(default=0)
